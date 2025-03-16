@@ -1,11 +1,25 @@
-import { attempt, Result } from '@lib/utils/attempt'
-import { Browser, Page } from 'puppeteer'
-
-import { Book } from '../Book'
+import { attempt } from '@lib/utils/attempt'
+import { Browser } from 'puppeteer'
 
 const headerSelector = '.product-page__header h1'
 
-async function extractProductDetails(page: Page, url: string): Promise<Book> {
+type ScrapeBookPageInput = {
+  url: string
+  browser: Browser
+}
+
+export async function scrapeBookPage({ url, browser }: ScrapeBookPageInput) {
+  const page = await browser.newPage()
+  await page.setViewport({ width: 1280, height: 800 })
+  await page.setUserAgent(
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+  )
+  await page.goto(url, { waitUntil: 'networkidle2' })
+
+  if (!page) {
+    throw new Error(`Could not create new page for ${url}`)
+  }
+
   const header = await attempt(
     page.waitForSelector(headerSelector, { timeout: 5000 }),
   )
@@ -45,10 +59,9 @@ async function extractProductDetails(page: Page, url: string): Promise<Book> {
         }
       }
     }
-    return 0
   })
 
-  if (numberOfPages === 0) {
+  if (!numberOfPages) {
     throw new Error(`Could not find page count for ${url}`)
   }
 
@@ -57,31 +70,5 @@ async function extractProductDetails(page: Page, url: string): Promise<Book> {
     price,
     numberOfPages,
     url,
-  }
-}
-
-export async function scrapeBookPage(
-  url: string,
-  browser: Browser,
-): Promise<Result<Book, Error>> {
-  let currentPage: Page | null = null
-
-  try {
-    currentPage = await browser.newPage()
-    await currentPage.setViewport({ width: 1280, height: 800 })
-    await currentPage.setUserAgent(
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-    )
-    await currentPage.goto(url, { waitUntil: 'networkidle2' })
-
-    const result = await attempt<Book, Error>(async () => {
-      return extractProductDetails(currentPage as Page, url)
-    })
-
-    return result
-  } finally {
-    if (currentPage) {
-      await currentPage.close()
-    }
   }
 }

@@ -211,7 +211,9 @@ async function findCheapestBooksPerPage(searchUrl: string): Promise<void> {
       )
 
       const batchResults = await Promise.all(
-        batch.map((url) => scrapeBookPage(url, browser as Browser)),
+        batch.map((url) =>
+          attempt(scrapeBookPage({ url, browser: browser as Browser })),
+        ),
       )
 
       // Filter out failed scrapes and collect successful results
