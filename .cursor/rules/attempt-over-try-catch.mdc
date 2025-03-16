@@ -1,6 +1,6 @@
 ---
 description: USE attempt utility WHEN handling errors INSTEAD OF try-catch blocks TO ensure consistent error handling
-globs: *.{ts,tsx,js,jsx}
+globs: *.ts,*.tsx
 alwaysApply: false
 ---
  

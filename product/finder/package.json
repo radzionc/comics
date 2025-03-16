@@ -1,0 +1,12 @@
+{
+  "name": "@product/finder",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "cheerio": "^1.0.0",
+    "puppeteer": "^24.4.0"
+  },
+  "scripts": {
+    "run": "npx tsx index.ts"
+  }
+}
