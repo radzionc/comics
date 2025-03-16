@@ -1,4 +1,3 @@
-import * as cheerio from 'cheerio'
 import puppeteer, { Browser } from 'puppeteer'
 
 /**
@@ -54,14 +53,11 @@ async function scrapeWildberriesProduct(
       return null
     }
 
-    // Get the fully rendered HTML content
-    const html = await page.content()
-
-    // Load the HTML into cheerio for easier parsing
-    const $ = cheerio.load(html)
-
-    // Extract product information
-    const productName = $('.product-page__header h1').text().trim()
+    // Extract product information using Puppeteer's evaluate
+    const productName = await page.$eval(
+      '.product-page__header h1',
+      (el) => el.textContent?.trim() || '',
+    )
     if (!productName) {
       console.log(
         `Could not extract product name for ${url}, skipping this product`,
@@ -70,7 +66,10 @@ async function scrapeWildberriesProduct(
     }
 
     // Fix price extraction - take only the first price value
-    const priceText = $('.price-block__final-price').first().text().trim()
+    const priceText = await page.$eval(
+      '.price-block__final-price',
+      (el) => el.textContent?.trim() || '',
+    )
     // Extract numeric price value (remove currency symbol and convert to number)
     const priceMatch = priceText.match(/[\d\s,.]+/)
     const price = priceMatch
@@ -84,20 +83,26 @@ async function scrapeWildberriesProduct(
       return null
     }
 
-    // Extract product specifications
-    const specifications: Record<string, string> = {}
-    $('.product-params__cell').each((_, element) => {
-      const name = $(element).find('.product-params__cell-title').text().trim()
-      const value = $(element).find('.product-params__cell-text').text().trim()
-      if (name && value) {
-        specifications[name] = value
-      }
+    // Extract product specifications using Puppeteer's evaluate
+    const specifications = await page.evaluate(() => {
+      const specs: Record<string, string> = {}
+      document.querySelectorAll('.product-params__cell').forEach((element) => {
+        const titleEl = element.querySelector('.product-params__cell-title')
+        const textEl = element.querySelector('.product-params__cell-text')
+        const name = titleEl?.textContent?.trim() || ''
+        const value = textEl?.textContent?.trim() || ''
+        if (name && value) {
+          specs[name] = value
+        }
 
-      // Also check for direct span content for page numbers
-      const spanText = $(element).find('span').text().trim()
-      if (spanText && spanText.includes('страниц')) {
-        specifications['Количество страниц'] = spanText
-      }
+        // Also check for direct span content for page numbers
+        const spanText =
+          element.querySelector('span')?.textContent?.trim() || ''
+        if (spanText && spanText.includes('страниц')) {
+          specs['Количество страниц'] = spanText
+        }
+      })
+      return specs
     })
 
     // Look for number of pages in specifications
@@ -121,18 +126,19 @@ async function scrapeWildberriesProduct(
       }
     }
 
-    // If not found in specifications, search directly in the HTML
+    // If not found in specifications, search directly in the page content
     if (numberOfPages === 0) {
-      // Look for any element containing text with page numbers
-      $('*').each((_, element) => {
-        const text = $(element).text().trim()
-        if (text.includes('страниц')) {
-          const pagesMatch = text.match(/(\d+)\s*страниц/)
-          if (pagesMatch && pagesMatch[1]) {
-            numberOfPages = parseInt(pagesMatch[1], 10)
-            return false // break the each loop
+      numberOfPages = await page.evaluate(() => {
+        for (const element of document.querySelectorAll('*')) {
+          const text = element.textContent?.trim() || ''
+          if (text.includes('страниц')) {
+            const pagesMatch = text.match(/(\d+)\s*страниц/)
+            if (pagesMatch && pagesMatch[1]) {
+              return parseInt(pagesMatch[1], 10)
+            }
           }
         }
+        return 0
       })
     }
 
@@ -480,19 +486,11 @@ async function scrapeSearchPage(
     })
     console.log(`Final product count: ${finalProductCount}`)
 
-    // Get the fully rendered HTML content after scrolling
-    const html = await page.content()
-
-    // Load the HTML into cheerio for easier parsing
-    const $ = cheerio.load(html)
-
-    // Extract all book links
-    const bookLinks: string[] = []
-    $('.product-card__link').each((_, element) => {
-      const href = $(element).attr('href')
-      if (href) {
-        bookLinks.push(href)
-      }
+    // Extract all book links using Puppeteer's evaluate
+    const bookLinks = await page.evaluate(() => {
+      return Array.from(document.querySelectorAll('.product-card__link'))
+        .map((link) => link.getAttribute('href'))
+        .filter((href): href is string => href !== null)
     })
 
     console.log(`Found ${bookLinks.length} book links on the search page`)
@@ -508,7 +506,7 @@ async function scrapeSearchPage(
         )
         return links
           .map((link) => link.getAttribute('href'))
-          .filter((href) => href !== null) as string[]
+          .filter((href): href is string => href !== null)
       })
 
       console.log(`Found ${jsLinks.length} links using JavaScript approach`)
