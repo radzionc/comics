@@ -6,12 +6,11 @@ import { Book } from '../Book'
 const headerSelector = '.product-page__header h1'
 
 async function extractProductDetails(page: Page, url: string): Promise<Book> {
-  const headerExists = await page
-    .waitForSelector(headerSelector, { timeout: 5000 })
-    .then(() => true)
-    .catch(() => false)
+  const header = await attempt(
+    page.waitForSelector(headerSelector, { timeout: 5000 }),
+  )
 
-  if (!headerExists) {
+  if ('error' in header) {
     throw new Error(`Product header not found for ${url}`)
   }
 
@@ -36,58 +35,18 @@ async function extractProductDetails(page: Page, url: string): Promise<Book> {
     throw new Error(`Could not extract valid price for ${url}`)
   }
 
-  const specifications = await page.evaluate(() => {
-    const specs: Record<string, string> = {}
-    document.querySelectorAll('.product-params__cell').forEach((element) => {
-      const titleEl = element.querySelector('.product-params__cell-title')
-      const textEl = element.querySelector('.product-params__cell-text')
-      const name = titleEl?.textContent?.trim() || ''
-      const value = textEl?.textContent?.trim() || ''
-      if (name && value) {
-        specs[name] = value
-      }
-
-      const spanText = element.querySelector('span')?.textContent?.trim() || ''
-      if (spanText && spanText.includes('страниц')) {
-        specs['Количество страниц'] = spanText
-      }
-    })
-    return specs
-  })
-
-  let numberOfPages = 0
-  const pageKeywords = [
-    'Количество страниц',
-    'Страниц',
-    'страниц',
-    'Pages',
-    'pages',
-  ]
-
-  for (const key in specifications) {
-    if (pageKeywords.some((keyword) => key.includes(keyword))) {
-      const pagesMatch = specifications[key].match(/\d+/)
-      if (pagesMatch) {
-        numberOfPages = parseInt(pagesMatch[0], 10)
-        break
-      }
-    }
-  }
-
-  if (numberOfPages === 0) {
-    numberOfPages = await page.evaluate(() => {
-      for (const element of document.querySelectorAll('*')) {
-        const text = element.textContent?.trim() || ''
-        if (text.includes('страниц')) {
-          const pagesMatch = text.match(/(\d+)\s*страниц/)
-          if (pagesMatch && pagesMatch[1]) {
-            return parseInt(pagesMatch[1], 10)
-          }
+  const numberOfPages = await page.evaluate(() => {
+    for (const element of document.querySelectorAll('*')) {
+      const text = element.textContent?.trim() || ''
+      if (text.includes('страниц')) {
+        const pagesMatch = text.match(/(\d+)\s*страниц/)
+        if (pagesMatch && pagesMatch[1]) {
+          return parseInt(pagesMatch[1], 10)
         }
       }
-      return 0
-    })
-  }
+    }
+    return 0
+  })
 
   if (numberOfPages === 0) {
     throw new Error(`Could not find page count for ${url}`)
