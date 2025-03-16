@@ -17,6 +17,12 @@ const searchStrings = [
   'человек паук коммиксы',
 ]
 
+const maxResults = 20
+const batchSize = 5
+
+const minPrice = 4000
+const maxPrice = 10000
+
 const main = async () => {
   const browser = await puppeteer.launch({
     headless: true,
@@ -28,7 +34,7 @@ const main = async () => {
       page: 1,
       sort: 'popular',
       search: searchString,
-      priceU: '4000;10000',
+      priceU: `${minPrice};${maxPrice}`,
       foriginal: '1',
     }),
   )
@@ -42,7 +48,7 @@ const main = async () => {
 
   console.log(`Found ${bookUrls.length} book urls`)
 
-  const batches = toBatches(bookUrls, 5)
+  const batches = toBatches(bookUrls, batchSize)
   const scrapeResults = []
 
   for (const batch of batches) {
@@ -60,12 +66,12 @@ const main = async () => {
     return [...acc, result.data]
   }, [] as Book[])
 
-  const sortedBooks = order(books, getBookPagePrice, 'desc')
+  const sortedBooks = order(books, getBookPagePrice, 'asc').slice(0, maxResults)
 
-  console.log('\nBooks sorted by price per page (most expensive first):\n')
-  sortedBooks.forEach((book) => {
+  console.log('Top Deals:')
+  sortedBooks.forEach((book, index) => {
     const pricePerPage = getBookPagePrice(book).toFixed(2)
-    console.log(`${book.name}`)
+    console.log(`${index + 1}. ${book.name}`)
     console.log(`Price: ${book.price}`)
     console.log(`Pages: ${book.numberOfPages}`)
     console.log(`Price per page: ${pricePerPage}`)
