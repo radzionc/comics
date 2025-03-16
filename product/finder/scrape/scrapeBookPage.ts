@@ -1,24 +1,12 @@
 import { attempt } from '@lib/utils/attempt'
-import { Browser } from 'puppeteer'
+
+import { getPage } from './getPage'
+import { ScrapePageInput } from './ScrapePageInput'
 
 const headerSelector = '.product-page__header h1'
 
-type ScrapeBookPageInput = {
-  url: string
-  browser: Browser
-}
-
-export async function scrapeBookPage({ url, browser }: ScrapeBookPageInput) {
-  const page = await browser.newPage()
-  await page.setViewport({ width: 1280, height: 800 })
-  await page.setUserAgent(
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-  )
-  await page.goto(url, { waitUntil: 'networkidle2' })
-
-  if (!page) {
-    throw new Error(`Could not create new page for ${url}`)
-  }
+export async function scrapeBookPage({ url, browser }: ScrapePageInput) {
+  const page = await getPage({ url, browser })
 
   const header = await attempt(
     page.waitForSelector(headerSelector, { timeout: 5000 }),
