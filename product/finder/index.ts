@@ -1,15 +1,9 @@
+import { attempt } from '@lib/utils/attempt'
+import { getErrorMessage } from '@lib/utils/getErrorMessage'
 import puppeteer, { Browser } from 'puppeteer'
 
-/**
- * Represents a book with its price per page information
- */
-interface BookInfo {
-  name: string
-  price: number
-  numberOfPages: number
-  pricePerPage: number
-  url: string
-}
+import { Book, getBookPricePerPage } from './Book'
+import { scrapeBookPage } from './scrape/scrapeBookPage'
 
 /**
  * Fetches and extracts product information from a Wildberries product page
@@ -21,7 +15,7 @@ interface BookInfo {
 async function scrapeWildberriesProduct(
   url: string,
   browser: Browser,
-): Promise<BookInfo | null> {
+): Promise<Book | null> {
   let page = null
 
   try {
@@ -159,7 +153,6 @@ async function scrapeWildberriesProduct(
       name: productName,
       price,
       numberOfPages,
-      pricePerPage,
       url,
     }
   } catch (error: unknown) {
@@ -191,8 +184,15 @@ async function findCheapestBooksPerPage(searchUrl: string): Promise<void> {
     })
 
     // Get all book links from the search page
-    const bookLinks = await scrapeSearchPage(searchUrl, browser)
+    const searchResult = await attempt(() =>
+      scrapeSearchPage(searchUrl, browser as Browser),
+    )
+    if ('error' in searchResult) {
+      console.error('Failed to scrape search page:', searchResult.error)
+      return
+    }
 
+    const bookLinks = searchResult.data
     if (bookLinks.length === 0) {
       console.error('No book links found on the search page')
       return
@@ -202,7 +202,7 @@ async function findCheapestBooksPerPage(searchUrl: string): Promise<void> {
 
     // Process books in batches to avoid overwhelming the system
     const batchSize = 5
-    const booksInfo: (BookInfo | null)[] = []
+    const booksInfo: Book[] = []
 
     for (let i = 0; i < bookLinks.length; i += batchSize) {
       const batch = bookLinks.slice(i, i + batchSize)
@@ -211,30 +211,27 @@ async function findCheapestBooksPerPage(searchUrl: string): Promise<void> {
       )
 
       const batchResults = await Promise.all(
-        batch.map((url) => scrapeWildberriesProduct(url, browser as Browser)),
+        batch.map((url) => scrapeBookPage(url, browser as Browser)),
       )
 
-      booksInfo.push(...batchResults)
+      // Filter out failed scrapes and collect successful results
+      batchResults.forEach((result) => {
+        if ('error' in result) {
+          console.error('Failed to scrape book:', getErrorMessage(result.error))
+        } else {
+          booksInfo.push(result.data)
+        }
+      })
     }
 
-    // Filter out null results (failed scrapes)
-    const validBooks = booksInfo.filter(
-      (book): book is BookInfo => book !== null,
-    )
-
-    // Filter out books with no pages or invalid price per page
-    const booksWithValidPricePerPage = validBooks.filter(
-      (book) => book.numberOfPages > 0 && book.pricePerPage > 0,
-    )
-
-    if (booksWithValidPricePerPage.length === 0) {
-      console.log('No books with valid price per page information found')
+    if (booksInfo.length === 0) {
+      console.log('No books with valid information found')
       return
     }
 
     // Sort books by price per page (cheapest first)
-    const sortedBooks = booksWithValidPricePerPage.sort(
-      (a, b) => a.pricePerPage - b.pricePerPage,
+    const sortedBooks = booksInfo.sort(
+      (a, b) => getBookPricePerPage(a) - getBookPricePerPage(b),
     )
 
     // Print the results
@@ -243,14 +240,13 @@ async function findCheapestBooksPerPage(searchUrl: string): Promise<void> {
       console.log(`\n${index + 1}. ${book.name}`)
       console.log(`   Price: ${book.price.toFixed(2)} ₽`)
       console.log(`   Pages: ${book.numberOfPages}`)
-      console.log(`   Price per page: ${book.pricePerPage.toFixed(2)} ₽`)
+      console.log(
+        `   Price per page: ${getBookPricePerPage(book).toFixed(2)} ₽`,
+      )
       console.log(`   URL: ${book.url}`)
     })
 
-    console.log(`\nTotal books processed: ${validBooks.length}`)
-    console.log(
-      `Books with valid price per page: ${booksWithValidPricePerPage.length}`,
-    )
+    console.log(`\nTotal books processed successfully: ${booksInfo.length}`)
   } catch (error: unknown) {
     if (error instanceof Error) {
       console.error(`Error in main process: ${error.message}`)
@@ -518,13 +514,6 @@ async function scrapeSearchPage(
     }
 
     return bookLinks
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      console.error(`Error scraping search page: ${error.message}`)
-    } else {
-      console.error(`Unexpected error scraping search page: ${String(error)}`)
-    }
-    return []
   } finally {
     // Close the page but not the browser
     if (page) {
