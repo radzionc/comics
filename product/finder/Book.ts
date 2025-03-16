@@ -5,6 +5,9 @@ export type Book = {
   url: string
 }
 
-export const getBookPagePrice = ({ price, numberOfPages }: Book): number => {
+export const getBookPagePrice = ({
+  price,
+  numberOfPages,
+}: Pick<Book, 'price' | 'numberOfPages'>): number => {
   return price / numberOfPages
 }

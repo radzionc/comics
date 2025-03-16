@@ -2,39 +2,32 @@ import { order } from '@lib/utils/array/order'
 import { toBatches } from '@lib/utils/array/toBatches'
 import { attempt } from '@lib/utils/attempt'
 import { addQueryParams } from '@lib/utils/query/addQueryParams'
-import puppeteer from 'puppeteer'
+import { Browser } from 'puppeteer'
 
-import { Book } from './Book'
-import { getBookPagePrice } from './Book'
+import { Book, getBookPagePrice } from './Book'
 import { scrapeBookPage } from './scrape/scrapeBookPage'
 import { scrapeSearchPage } from './scrape/scrapeSearchPage'
+import { withBrowser } from './scrape/withBrowser'
 
 const searchStrings = [
   'marvel коммиксы',
   'бэтмен коммиксы',
   'росомаха коммиксы',
-  'люди икс коммиксы',
-  'человек паук коммиксы',
 ]
 
-const maxResults = 20
+const maxResultsToDisplay = 20
 const batchSize = 5
 
-const minPrice = 4000
-const maxPrice = 10000
+const minPrice = 40
+const maxPrice = 100
 
-const main = async () => {
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  })
-
+const findBooks = async (browser: Browser) => {
   const searchUrls = searchStrings.map((searchString) =>
     addQueryParams(`https://www.wildberries.ru/catalog/0/search.aspx`, {
       page: 1,
       sort: 'popular',
       search: searchString,
-      priceU: `${minPrice};${maxPrice}`,
+      priceU: [minPrice, maxPrice].map((v) => v * 100).join(';'),
       foriginal: '1',
     }),
   )
@@ -66,7 +59,10 @@ const main = async () => {
     return [...acc, result.data]
   }, [] as Book[])
 
-  const sortedBooks = order(books, getBookPagePrice, 'asc').slice(0, maxResults)
+  const sortedBooks = order(books, getBookPagePrice, 'asc').slice(
+    0,
+    maxResultsToDisplay,
+  )
 
   console.log('Top Deals:')
   sortedBooks.forEach((book, index) => {
@@ -78,8 +74,6 @@ const main = async () => {
     console.log(`URL: ${book.url}`)
     console.log('---')
   })
-
-  await browser.close()
 }
 
-main().catch(console.error)
+withBrowser(findBooks).catch(console.error)
