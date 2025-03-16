@@ -1,5 +1,6 @@
 import { attempt } from '@lib/utils/attempt'
 import { getErrorMessage } from '@lib/utils/getErrorMessage'
+import { addQueryParams } from '@lib/utils/query/addQueryParams'
 import puppeteer, { Browser } from 'puppeteer'
 
 import { Book, getBookPricePerPage } from './Book'
@@ -100,9 +101,19 @@ async function findCheapestBooksPerPage(searchUrl: string): Promise<void> {
   }
 }
 
+const searchString = 'люди икс коммиксы'
+
 // URL of the Wildberries search page to scrape
-const searchUrl =
-  'https://www.wildberries.ru/catalog/0/search.aspx?page=1&sort=popular&search=%D0%BB%D1%8E%D0%B4%D0%B8+%D0%B8%D0%BA%D1%81+%D0%BA%D0%BE%D0%BC%D0%B8%D0%BA%D1%81%D1%8B&priceU=4000%3B10000&foriginal=1'
+const searchUrl = addQueryParams(
+  `https://www.wildberries.ru/catalog/0/search.aspx`,
+  {
+    page: 1,
+    sort: 'popular',
+    search: searchString,
+    priceU: '4000;10000',
+    foriginal: '1',
+  },
+)
 
 // Execute the main function
 findCheapestBooksPerPage(searchUrl)

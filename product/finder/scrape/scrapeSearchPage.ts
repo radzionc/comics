@@ -1,4 +1,4 @@
-import { attempt } from '@lib/utils/attempt'
+import { sleep } from '@lib/utils/sleep'
 
 import { getPage } from './getPage'
 import { ScrapePageInput } from './ScrapePageInput'
@@ -13,69 +13,23 @@ export async function scrapeSearchPage({
 
   console.log(`Scraping search page: ${url}`)
 
-  // Scroll and load all products
-  let previousProductCount = 0
-  let currentProductCount = 0
-  let scrollAttempts = 0
-  let noChangeCounter = 0
-  const maxScrollAttempts = 50
-  const scrollStabilityThreshold = 3
-
-  do {
-    currentProductCount = await page.evaluate(
+  const recursiveScroll = async (pageCounts: number[]) => {
+    const currentProductCount = await page.evaluate(
       (selector) => document.querySelectorAll(selector).length,
       productLinkSelector,
     )
 
-    console.log(
-      `Current product count: ${currentProductCount}, scroll attempt: ${scrollAttempts + 1}`,
-    )
-
-    if (currentProductCount === previousProductCount) {
-      noChangeCounter++
-      if (noChangeCounter >= scrollStabilityThreshold) {
-        console.log(
-          `No new products after ${scrollStabilityThreshold} consecutive scrolls, current count: ${currentProductCount}`,
-        )
-        break
-      }
-    } else {
-      noChangeCounter = 0
+    if (pageCounts.find((count) => count === currentProductCount)) {
+      return
     }
 
-    // Scroll to bottom
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
-    await new Promise((resolve) =>
-      setTimeout(resolve, 1000 + Math.random() * 1000),
-    )
+    await sleep(1000)
 
-    // Try clicking "Show more" button
-    const showMoreButton = await page.$('.pagination-next')
-    if (showMoreButton) {
-      await attempt(async () => {
-        await showMoreButton.click()
-        await page.waitForNavigation({
-          waitUntil: 'networkidle0',
-          timeout: 5000,
-        })
-      })
-    }
+    await recursiveScroll([...pageCounts, currentProductCount])
+  }
 
-    // Incremental scrolling every 3rd attempt
-    if (scrollAttempts % 3 === 0) {
-      const viewportHeight = await page.evaluate(() => window.innerHeight)
-      const totalHeight = await page.evaluate(() => document.body.scrollHeight)
-
-      for (let i = 1; i <= 3; i++) {
-        const targetPosition = Math.floor((totalHeight / 3) * i)
-        await page.evaluate((pos) => window.scrollTo(0, pos), targetPosition)
-        await new Promise((resolve) => setTimeout(resolve, 500))
-      }
-    }
-
-    previousProductCount = currentProductCount
-    scrollAttempts++
-  } while (scrollAttempts < maxScrollAttempts)
+  await recursiveScroll([])
 
   // Extract all book links
   const bookLinks = await page.evaluate((selector) => {
