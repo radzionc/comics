@@ -3,21 +3,23 @@ import { toBatches } from '@lib/utils/array/toBatches'
 import { withoutDuplicates } from '@lib/utils/array/withoutDuplicates'
 import { withoutUndefined } from '@lib/utils/array/withoutUndefined'
 import { attempt } from '@lib/utils/attempt'
+import { getErrorMessage } from '@lib/utils/getErrorMessage'
 import { chainPromises } from '@lib/utils/promise/chainPromises'
 import { addQueryParams } from '@lib/utils/query/addQueryParams'
 import { Browser } from 'puppeteer'
 
 import { getBookPagePrice, printBook } from './Book'
+import { makeWithPage } from './scrape/makeWithPage'
 import { scrapeBookPage } from './scrape/scrapeBookPage'
 import { scrapeSearchPage } from './scrape/scrapeSearchPage'
 import { withBrowser } from './scrape/withBrowser'
-import { makeWithPage } from './scrape/withPage'
 
 const searchStrings = [
-  'marvel комиксы',
   'бэтмен комиксы',
-  'росомаха комиксы',
+  'люди икс комиксы',
+  'сорвиголова комиксы',
   'капитан америка комиксы',
+  'дэдпул комиксы',
 ]
 
 const maxResultsToDisplay = 20
@@ -38,12 +40,23 @@ const findBooks = async (browser: Browser) => {
   )
 
   const bookUrls = withoutDuplicates(
-    await chainPromises(
-      searchUrls.map(
-        (url) => () => makeWithPage({ url, browser })(scrapeSearchPage),
-      ),
-    ),
-  ).flat()
+    (
+      await chainPromises(
+        searchUrls.map((url) => async () => {
+          const result = await attempt(
+            makeWithPage({ url, browser })(scrapeSearchPage),
+          )
+
+          if ('error' in result) {
+            console.error(getErrorMessage(result.error))
+            return []
+          }
+
+          return result.data
+        }),
+      )
+    ).flat(),
+  )
 
   console.log(`Found ${bookUrls.length} books total`)
 
@@ -55,16 +68,24 @@ const findBooks = async (browser: Browser) => {
         batches.map((batch, index) => () => {
           console.log(`Scraping batch #${index + 1} of ${batches.length}`)
           return Promise.all(
-            batch.map((url) => {
-              const withPage = makeWithPage({ url, browser })
-              return attempt(withPage(scrapeBookPage))
+            batch.map(async (url) => {
+              const result = await attempt(
+                makeWithPage({ url, browser })(scrapeBookPage),
+              )
+
+              if ('error' in result) {
+                console.error(getErrorMessage(result.error))
+                return
+              }
+
+              return result.data
             }),
           )
         }),
       )
     )
       .flat()
-      .flatMap(({ data }) => data),
+      .flat(),
   )
 
   const sortedBooks = order(books, getBookPagePrice, 'asc').slice(
