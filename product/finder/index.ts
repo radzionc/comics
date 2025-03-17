@@ -1,18 +1,23 @@
 import { order } from '@lib/utils/array/order'
 import { toBatches } from '@lib/utils/array/toBatches'
+import { withoutDuplicates } from '@lib/utils/array/withoutDuplicates'
+import { withoutUndefined } from '@lib/utils/array/withoutUndefined'
 import { attempt } from '@lib/utils/attempt'
+import { chainPromises } from '@lib/utils/promise/chainPromises'
 import { addQueryParams } from '@lib/utils/query/addQueryParams'
 import { Browser } from 'puppeteer'
 
-import { Book, getBookPagePrice } from './Book'
+import { getBookPagePrice, printBook } from './Book'
 import { scrapeBookPage } from './scrape/scrapeBookPage'
 import { scrapeSearchPage } from './scrape/scrapeSearchPage'
 import { withBrowser } from './scrape/withBrowser'
+import { makeWithPage } from './scrape/withPage'
 
 const searchStrings = [
-  'marvel коммиксы',
-  'бэтмен коммиксы',
-  'росомаха коммиксы',
+  'marvel комиксы',
+  'бэтмен комиксы',
+  'росомаха комиксы',
+  'капитан америка комиксы',
 ]
 
 const maxResultsToDisplay = 20
@@ -26,38 +31,41 @@ const findBooks = async (browser: Browser) => {
     addQueryParams(`https://www.wildberries.ru/catalog/0/search.aspx`, {
       page: 1,
       sort: 'popular',
-      search: searchString,
+      search: encodeURIComponent(searchString),
       priceU: [minPrice, maxPrice].map((v) => v * 100).join(';'),
       foriginal: '1',
     }),
   )
 
-  const bookUrls: string[] = []
+  const bookUrls = withoutDuplicates(
+    await chainPromises(
+      searchUrls.map(
+        (url) => () => makeWithPage({ url, browser })(scrapeSearchPage),
+      ),
+    ),
+  ).flat()
 
-  for (const searchUrl of searchUrls) {
-    const newBookUrls = await scrapeSearchPage({ url: searchUrl, browser })
-    bookUrls.push(...newBookUrls.filter((url) => !bookUrls.includes(url)))
-  }
-
-  console.log(`Found ${bookUrls.length} book urls`)
+  console.log(`Found ${bookUrls.length} books total`)
 
   const batches = toBatches(bookUrls, batchSize)
-  const scrapeResults = []
 
-  for (const batch of batches) {
-    console.log(`Scraping batch of ${batch.length} books`)
-    const batchResults = await Promise.all(
-      batch.map((url) => attempt(scrapeBookPage({ url, browser }))),
+  const books = withoutUndefined(
+    (
+      await chainPromises(
+        batches.map((batch, index) => () => {
+          console.log(`Scraping batch #${index + 1} of ${batches.length}`)
+          return Promise.all(
+            batch.map((url) => {
+              const withPage = makeWithPage({ url, browser })
+              return attempt(withPage(scrapeBookPage))
+            }),
+          )
+        }),
+      )
     )
-    scrapeResults.push(...batchResults)
-  }
-
-  const books = scrapeResults.reduce((acc, result) => {
-    if ('error' in result) {
-      return acc
-    }
-    return [...acc, result.data]
-  }, [] as Book[])
+      .flat()
+      .flatMap(({ data }) => data),
+  )
 
   const sortedBooks = order(books, getBookPagePrice, 'asc').slice(
     0,
@@ -66,12 +74,7 @@ const findBooks = async (browser: Browser) => {
 
   console.log('Top Deals:')
   sortedBooks.forEach((book, index) => {
-    const pricePerPage = getBookPagePrice(book).toFixed(2)
-    console.log(`${index + 1}. ${book.name}`)
-    console.log(`Price: ${book.price}`)
-    console.log(`Pages: ${book.numberOfPages}`)
-    console.log(`Price per page: ${pricePerPage}`)
-    console.log(`URL: ${book.url}`)
+    console.log(`${index + 1}. ${printBook(book)}`)
     console.log('---')
   })
 }

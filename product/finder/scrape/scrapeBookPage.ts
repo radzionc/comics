@@ -1,19 +1,15 @@
 import { attempt } from '@lib/utils/attempt'
-
-import { getPage } from './getPage'
-import { ScrapePageInput } from './ScrapePageInput'
+import { Page } from 'puppeteer'
 
 const headerSelector = '.product-page__header h1'
 
-export async function scrapeBookPage({ url, browser }: ScrapePageInput) {
-  const page = await getPage({ url, browser })
-
+export async function scrapeBookPage(page: Page) {
   const header = await attempt(
     page.waitForSelector(headerSelector, { timeout: 5000 }),
   )
 
   if ('error' in header) {
-    throw new Error(`Product header not found for ${url}`)
+    throw new Error(`Product header not found for ${page.url()}`)
   }
 
   const productName = await page.$eval(
@@ -21,7 +17,7 @@ export async function scrapeBookPage({ url, browser }: ScrapePageInput) {
     (el: Element) => el.textContent?.trim() || '',
   )
   if (!productName) {
-    throw new Error(`Could not extract product name for ${url}`)
+    throw new Error(`Could not extract product name for ${page.url()}`)
   }
 
   const priceText = await page.$eval(
@@ -34,7 +30,7 @@ export async function scrapeBookPage({ url, browser }: ScrapePageInput) {
     : 0
 
   if (price === 0) {
-    throw new Error(`Could not extract valid price for ${url}`)
+    throw new Error(`Could not extract valid price for ${page.url()}`)
   }
 
   const numberOfPages = await page.evaluate(() => {
@@ -50,13 +46,13 @@ export async function scrapeBookPage({ url, browser }: ScrapePageInput) {
   })
 
   if (!numberOfPages) {
-    throw new Error(`Could not find page count for ${url}`)
+    throw new Error(`Could not find page count for ${page.url()}`)
   }
 
   return {
     name: productName,
     price,
     numberOfPages,
-    url,
+    url: page.url(),
   }
 }

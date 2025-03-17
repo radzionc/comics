@@ -1,17 +1,10 @@
 import { sleep } from '@lib/utils/sleep'
-
-import { getPage } from './getPage'
-import { ScrapePageInput } from './ScrapePageInput'
+import { Page } from 'puppeteer'
 
 const productLinkSelector = '.product-card-list .product-card__link'
 
-export async function scrapeSearchPage({
-  url,
-  browser,
-}: ScrapePageInput): Promise<string[]> {
-  const page = await getPage({ url, browser })
-
-  console.log(`Scraping search page: ${url}`)
+export async function scrapeSearchPage(page: Page): Promise<string[]> {
+  console.log(`Scraping search page: ${page.url()}`)
 
   const recursiveScroll = async (pageCounts: number[]) => {
     const currentProductCount = await page.evaluate(
@@ -31,7 +24,6 @@ export async function scrapeSearchPage({
 
   await recursiveScroll([])
 
-  // Extract all book links
   const bookLinks = await page.evaluate((selector) => {
     return Array.from(document.querySelectorAll(selector))
       .map((link) => link.getAttribute('href'))
@@ -39,9 +31,9 @@ export async function scrapeSearchPage({
   }, productLinkSelector)
 
   if (bookLinks.length === 0) {
-    throw new Error(`No book links found on ${url}`)
+    throw new Error(`No books found on ${page.url()}`)
   }
 
-  console.log(`Found ${bookLinks.length} book links`)
+  console.log(`Found ${bookLinks.length} books on ${page.url()}`)
   return bookLinks
 }
