@@ -15,17 +15,23 @@ import { scrapeSearchPage } from './scrape/scrapeSearchPage'
 import { withBrowser } from './scrape/withBrowser'
 
 const searchStrings = [
+  'dc комиксы',
   'бэтмен комиксы',
+  'marvel комиксы',
   'люди икс комиксы',
-  'сорвиголова комиксы',
-  'капитан америка комиксы',
+  'росомаха комиксы',
   'дэдпул комиксы',
+  'человек паук комиксы',
+  'халк комиксы',
+  'капитан америка комиксы',
+  'сорвиголова комиксы',
+  'фантастическая четверка комиксы',
 ]
 
-const maxResultsToDisplay = 20
+const maxResultsToDisplay = 40
 const batchSize = 5
 
-const minPrice = 40
+const minPrice = 30
 const maxPrice = 100
 
 const findBooks = async (browser: Browser) => {
@@ -36,6 +42,9 @@ const findBooks = async (browser: Browser) => {
       search: encodeURIComponent(searchString),
       priceU: [minPrice, maxPrice].map((v) => v * 100).join(';'),
       foriginal: '1',
+      frating: '1',
+      f1185: '1%3B10633',
+      action: '199053',
     }),
   )
 
