@@ -36,8 +36,8 @@ export async function scrapeBookPage(page: Page) {
   const numberOfPages = await page.evaluate(() => {
     for (const element of document.querySelectorAll('*')) {
       const text = element.textContent?.trim() || ''
-      if (text.includes('страниц')) {
-        const pagesMatch = text.match(/(\d+)\s*страниц/)
+      if (text.includes('страниц') || text.includes('шт.')) {
+        const pagesMatch = text.match(/(\d+)\s*(страниц|шт\.)/)
         if (pagesMatch && pagesMatch[1]) {
           return parseInt(pagesMatch[1], 10)
         }

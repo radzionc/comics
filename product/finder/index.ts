@@ -28,7 +28,7 @@ const searchStrings = [
   'фантастическая четверка комиксы',
 ]
 
-const maxResultsToDisplay = 40
+const maxPricePerPage = 0.16
 const batchSize = 5
 
 const minPrice = 30
@@ -97,9 +97,8 @@ const findBooks = async (browser: Browser) => {
       .flat(),
   )
 
-  const sortedBooks = order(books, getBookPagePrice, 'asc').slice(
-    0,
-    maxResultsToDisplay,
+  const sortedBooks = order(books, getBookPagePrice, 'asc').filter(
+    (book) => getBookPagePrice(book) <= maxPricePerPage,
   )
 
   console.log('Top Deals:')
