@@ -15,18 +15,35 @@ import { scrapeSearchPage } from './scrape/scrapeSearchPage'
 import { withBrowser } from './scrape/withBrowser'
 
 const searchStrings = [
-  'dc комиксы',
   'бэтмен комиксы',
   'marvel комиксы',
   'люди икс комиксы',
   'росомаха комиксы',
   'дэдпул комиксы',
-  'человек паук комиксы',
-  'халк комиксы',
-  'капитан америка комиксы',
   'сорвиголова комиксы',
-  'фантастическая четверка комиксы',
+  // 'человек паук комиксы',
+  // 'халк комиксы',
+  // 'капитан америка комиксы',
+  // 'фантастическая четверка комиксы',
 ]
+
+const productsToIgnore = [
+  'One-Punch Man',
+  'One Piece',
+  'Naruto',
+  'Gachiakuta',
+  'Проза бродячих псов',
+  'Пять невест',
+  'Бэтмен и психология',
+  'Токийские мстители',
+  'Магистр дьявольского культа',
+  'Не дразни меня',
+  'Берсерк',
+  'Манга',
+  'Металл смерти',
+  'Злодейка-марионетка',
+  'Князь Света',
+].map((product) => product.toLowerCase())
 
 const maxPricePerPage = 0.16
 const batchSize = 5
@@ -95,6 +112,11 @@ const findBooks = async (browser: Browser) => {
     )
       .flat()
       .flat(),
+  ).filter(
+    (book) =>
+      !productsToIgnore.some((ignoreString) =>
+        book.name.toLowerCase().includes(ignoreString),
+      ),
   )
 
   const sortedBooks = order(books, getBookPagePrice, 'asc').filter(
