@@ -9,6 +9,7 @@ import { addQueryParams } from '@lib/utils/query/addQueryParams'
 import { Browser } from 'puppeteer'
 
 import { getBookPagePrice, printBook } from './Book'
+import { productsToIgnore } from './productsToIgnore'
 import { makeWithPage } from './scrape/makeWithPage'
 import { scrapeBookPage } from './scrape/scrapeBookPage'
 import { scrapeSearchPage } from './scrape/scrapeSearchPage'
@@ -26,24 +27,6 @@ const searchStrings = [
   // 'капитан америка комиксы',
   // 'фантастическая четверка комиксы',
 ]
-
-const productsToIgnore = [
-  'One-Punch Man',
-  'One Piece',
-  'Naruto',
-  'Gachiakuta',
-  'Проза бродячих псов',
-  'Пять невест',
-  'Бэтмен и психология',
-  'Токийские мстители',
-  'Магистр дьявольского культа',
-  'Не дразни меня',
-  'Берсерк',
-  'Манга',
-  'Металл смерти',
-  'Злодейка-марионетка',
-  'Князь Света',
-].map((product) => product.toLowerCase())
 
 const maxPricePerPage = 0.16
 const batchSize = 5
