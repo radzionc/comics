@@ -16,11 +16,12 @@ import { scrapeSearchPage } from './scrape/scrapeSearchPage'
 import { withBrowser } from './scrape/withBrowser'
 
 const searchStrings = [
+  'dc комиксы',
   'бэтмен комиксы',
   'marvel комиксы',
   'люди икс комиксы',
   'росомаха комиксы',
-  'дэдпул комиксы',
+  // 'дэдпул комиксы',
   'сорвиголова комиксы',
   // 'человек паук комиксы',
   // 'халк комиксы',
@@ -44,7 +45,8 @@ const findBooks = async (browser: Browser) => {
       foriginal: '1',
       frating: '1',
       f1185: '1%3B10633',
-      action: '199053',
+      // The action number is associated with a specific sale and may change from time to time.
+      action: '202422',
     }),
   )
 
