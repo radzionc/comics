@@ -24,4 +24,5 @@ export const productsToIgnore = [
   'Каратель MAX. Полное собрание. Том 4',
   'Бэтмен. Темная победа',
   'Росомаха против Карателя',
+  'Болотная Тварь. Книга 1',
 ].map((product) => product.toLowerCase())
