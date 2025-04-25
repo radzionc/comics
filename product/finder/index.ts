@@ -16,26 +16,27 @@ import { scrapeSearchPage } from './scrape/scrapeSearchPage'
 import { withBrowser } from './scrape/withBrowser'
 
 const searchStrings = [
-  'dc комиксы',
-  'бэтмен комиксы',
-  'marvel комиксы',
-  'люди икс комиксы',
-  'росомаха комиксы',
-  'дэдпул комиксы',
-  'сорвиголова комиксы',
-  'человек паук комиксы',
-  'халк комиксы',
-  'черная пантера комиксы',
-  'мстители комиксы',
-  'капитан америка комиксы',
-  'фантастическая четверка комиксы',
-  'тор комиксы',
-]
+  'dc',
+  'бэтмен',
+  'супермен',
+  'marvel',
+  'люди икс',
+  'росомаха',
+  'дэдпул',
+  'сорвиголова',
+  'человек паук',
+  'халк',
+  'черная пантера',
+  'мстители',
+  'капитан америка',
+  'фантастическая четверка',
+  'серебряный серфер',
+].map((name) => `${name} комиксы`)
 
-const maxPricePerPage = 0.16
+const maxPricePerPage = 0.11
 const batchSize = 5
 
-const minPrice = 30
+const minPrice = 20
 const maxPrice = 100
 
 const findBooks = async (browser: Browser) => {
@@ -46,10 +47,12 @@ const findBooks = async (browser: Browser) => {
       search: encodeURIComponent(searchString),
       priceU: [minPrice, maxPrice].map((v) => v * 100).join(';'),
       foriginal: '1',
+      // С рейтингом от 4,7
       frating: '1',
+      // with hard cover
       f1185: '1%3B10633',
       // The action number is associated with a specific sale and may change from time to time.
-      action: '202422',
+      action: '203668',
     }),
   )
 
